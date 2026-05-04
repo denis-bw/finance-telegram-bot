@@ -1,0 +1,7 @@
+python-telegram-bot>=21.0
+python-dotenv
+httpx
+matplotlib
+numpy
+motor
+pymongo

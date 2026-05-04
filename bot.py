@@ -1,7 +1,9 @@
 import os
 import logging
+import threading
 from datetime import date, datetime
 from functools import wraps
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -1844,6 +1846,22 @@ def main():
 
     app.add_handler(conv)
     logger.info("Бот запущено.")
+
+    class _Health(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        def log_message(self, *args):
+            pass
+
+    port = int(os.environ.get("PORT", 10000))
+    threading.Thread(
+        target=lambda: HTTPServer(("0.0.0.0", port), _Health).serve_forever(),
+        daemon=True
+    ).start()
+    logger.info(f"Health-check сервер запущено на порту {port}")
+
     app.run_polling(drop_pending_updates=True)
 
 

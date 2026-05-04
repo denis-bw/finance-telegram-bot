@@ -1710,18 +1710,14 @@ F_TEXT = F.TEXT & ~F.COMMAND & ~F_ANY_BTN
 
 
 def main():
-    import asyncio
-
-    async def _init():
-        await db.init_db()
-
-    asyncio.get_event_loop().run_until_complete(_init())
-
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN не знайдено.")
         return
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    async def post_init(application):
+        await db.init_db()
+
+    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
     COMMON = [
         MessageHandler(F.PHOTO,      handle_photo_any),

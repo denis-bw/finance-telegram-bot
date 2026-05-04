@@ -1852,15 +1852,48 @@ def main():
 
     if webhook_url:
         logger.info(f"Webhook режим: {webhook_url}/webhook  port={port}")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path="webhook",
-            webhook_url=f"{webhook_url}/webhook",
-            secret_token=None,
-            drop_pending_updates=True,
-            allowed_updates=["message", "callback_query"],
-        )
+
+        from aiohttp import web
+
+        async def health(request):
+            return web.Response(text="OK")
+
+        async def handle_webhook(request):
+            data = await request.json()
+            from telegram import Update
+            update = Update.de_json(data, app.bot)
+            await app.process_update(update)
+            return web.Response(text="OK")
+
+        async def run_app():
+            await app.initialize()
+            await app.start()
+            await app.bot.set_webhook(
+                url=f"{webhook_url}/webhook",
+                drop_pending_updates=True,
+                allowed_updates=["message", "callback_query"],
+            )
+
+            aio_app = web.Application()
+            aio_app.router.add_get("/", health)
+            aio_app.router.add_post("/webhook", handle_webhook)
+
+            runner = web.AppRunner(aio_app)
+            await runner.setup()
+            site = web.TCPSite(runner, "0.0.0.0", port)
+            await site.start()
+            logger.info(f"aiohttp сервер запущено на порту {port}")
+
+            import asyncio
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await app.stop()
+                await app.shutdown()
+                await runner.cleanup()
+
+        import asyncio
+        asyncio.run(run_app())
     else:
         logger.info("WEBHOOK_URL не задано — polling (тільки локально)")
         app.run_polling(drop_pending_updates=True)

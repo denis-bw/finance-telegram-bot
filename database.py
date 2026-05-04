@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import date, datetime
-
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
@@ -19,7 +19,11 @@ def _get_db():
     if _db is None:
         if not MONGO_URI:
             raise ValueError("MONGO_URI не встановлено у змінних середовища.")
-        _client = AsyncIOMotorClient(MONGO_URI)
+
+        _client = AsyncIOMotorClient(
+            MONGO_URI,
+            tlsCAFile=certifi.where()
+        )
         _db = _client["financebot"]
     return _db
 

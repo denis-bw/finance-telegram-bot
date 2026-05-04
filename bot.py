@@ -1857,7 +1857,9 @@ def main():
             port=port,
             url_path="webhook",
             webhook_url=f"{webhook_url}/webhook",
+            secret_token=None,
             drop_pending_updates=True,
+            allowed_updates=["message", "callback_query"],
         )
     else:
         logger.info("WEBHOOK_URL не задано — polling (тільки локально)")

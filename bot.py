@@ -1115,19 +1115,9 @@ async def _do_save(msg, ctx):
 
     ic  = ctx.user_data.get("item_cats_new", {})
     pid = await db.add_purchase(data)
-
-    # Зберігаємо категорії товарів
     for item_idx, cat_id in ic.items():
         if cat_id:
             await db.set_item_category(pid, item_idx, cat_id)
-
-    # Встановлюємо категорію чека:
-    # якщо всі товари в одній категорії — ставимо її на чек
-    # якщо ic порожній — залишаємо "Без категорії"
-    if ic:
-        unique_cats = set(cid for cid in ic.values() if cid)
-        if len(unique_cats) == 1:
-            await db.set_purchase_category(pid, unique_cats.pop())
 
     ctx.user_data.pop("pending", None)
     ctx.user_data.pop("item_cats_new", None)
@@ -1857,45 +1847,21 @@ def main():
     app.add_handler(conv)
     logger.info("Бот запущено.")
 
-    class _Health(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"OK")
-        def log_message(self, *args):
-            pass
+    webhook_url = os.getenv("WEBHOOK_URL", "")
+    port        = int(os.environ.get("PORT", 10000))
 
-    port = int(os.environ.get("PORT", 10000))
-    threading.Thread(
-        target=lambda: HTTPServer(("0.0.0.0", port), _Health).serve_forever(),
-        daemon=True
-    ).start()
-    logger.info(f"Health-check сервер запущено на порту {port}")
-
-    import signal, asyncio
-
-    async def _run():
-        await app.initialize()
-        await app.start()
-        await app.updater.start_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
-        logger.info("Бот запущено, чекаємо зупинки...")
-
-        stop_event = asyncio.Event()
-
-        def _sig(*_):
-            logger.info("Отримано сигнал зупинки, завершуємо...")
-            stop_event.set()
-
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, _sig)
-
-        await stop_event.wait()
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
-
-    asyncio.run(_run())
+    if webhook_url:
+        logger.info(f"Webhook режим: {webhook_url}/webhook  port={port}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path="webhook",
+            webhook_url=f"{webhook_url}/webhook",
+            drop_pending_updates=True,
+        )
+    else:
+        logger.info("WEBHOOK_URL не задано — polling (тільки локально)")
+        app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":

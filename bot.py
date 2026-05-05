@@ -1859,10 +1859,13 @@ def main():
             return web.Response(text="OK")
 
         async def handle_webhook(request):
-            data = await request.json()
-            from telegram import Update
-            update = Update.de_json(data, app.bot)
-            await app.process_update(update)
+            try:
+                data = await request.json()
+                from telegram import Update
+                update = Update.de_json(data, app.bot)
+                await app.process_update(update)
+            except Exception as e:
+                logger.error(f"Webhook handle error: {e}")
             return web.Response(text="OK")
 
         async def run_app():
@@ -1871,8 +1874,8 @@ def main():
             await app.bot.set_webhook(
                 url=f"{webhook_url}/webhook",
                 drop_pending_updates=True,
-                allowed_updates=["message", "callback_query"],
             )
+            logger.info("Webhook зареєстровано успішно")
 
             aio_app = web.Application()
             aio_app.router.add_get("/", health)
